@@ -4,7 +4,27 @@ body {
   font-family:monospace;
 }
 
-.white {
-  color:white;
-  cursor: pointer;
+.white { color:white;}
+.yellow { color:yellow;}
+.darkgray { color:dimgray;}
+.gray { color:gray;}
+.wood { color:brown;}
+
+.timer {text-decoration: none;}
+.cap { text-transform:capitalize; }
+
+#log     { height: 14.28% }
+#areas   { height: 14.28% }
+#main    { height: 35.71% }
+#actions { height: 7.14% }
+#stats   { height: 7.14% }
+.spacer  { height: 3.64% }
+
+table {
+  position: absolute; 
+  top: 0; 
+  bottom: 0; 
+  left: 0; 
+  right: 0;
+  width: 100%;
 }
