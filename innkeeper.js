@@ -1,3 +1,8 @@
+/*global window,document,console,clearInterval: false */
+/*Not node, but it makes JSLint happy ;]*/
+/*jslint node: true*/
+'use strict';
+
 var data = {
   messages: ['','',''],
   lastMessageCounter: 0,
@@ -7,11 +12,10 @@ var data = {
   areaLabelColors: {
     Inn : 'wood'
   },
-  allTimers : {
-    Inn : [],
-    Carpenter : []
-  },
+  allTimers : {},
+  allGuests : {},
   timers : {},
+  guests : {},
   labelColors: {
     beers: 'yellow'
   },
@@ -29,12 +33,17 @@ var elements = {
   actions: document.getElementById( 'actions' ),
   areas: document.getElementById( 'areas' ),
   timers: document.getElementById( 'main' ),
-  stats: document.getElementById( 'stats' )
+  stats: document.getElementById( 'stats' ),
+  guests: document.getElementById( 'guests' )
 };
 
 var timers = {
   'lighting_lantern' : { area:'Inn', name:'Lighting Lantern', time: 5, color:'yellow' },
   'tapping_beer'     : { area:'Inn', name:'Tapping Beer',     time: 5, color:'yellow' , z: 1000 }
+};
+
+var guests = {
+  'Town Drunk'       : { area:'Inn', name:'Town Drunk', color: 'CornflowerBlue', intro: 'A local drunk enters the inn' }
 };
 
 var handlers = {
@@ -44,10 +53,10 @@ var handlers = {
     activateTimer( timers.lighting_lantern );
   },
   lighting_lantern : function(timer){
-    self.removetimer( timer );
-    self.addAction( 'Tap beer', 'yellow' );
-    self.addMessage( 'The lantern lights up the whole inn room' );
-    self.addMessage( 'You discover a beer tap and feel thirsty.' );  
+    removetimer( timer );
+    addAction( 'Tap beer', 'yellow' );
+    addMessage( 'The lantern lights up the whole inn room' );
+    addMessage( 'You discover a beer tap and feel thirsty.' );  
   },
   tap_beer : function(){
     activateTimer( timers.tapping_beer );
@@ -62,6 +71,9 @@ var handlers = {
       data.displayedStats.push( 'beers' );
       data.stats.beers--;
     }
+    if( data.stats.totalBeers == 2 ){
+      addGuest( 'Town Drunk' );
+    }
     updateUI( 'stats' );
   },
   inn: function(){
@@ -75,10 +87,9 @@ var handlers = {
   
 };
 
-var self = this;
-
-//this <> timer objet
+//this <> timer object
 function genericTimerHandler(){
+  /* jshint validthis: true */
   this.counter--;
   if( this.counter == -1 ){
     var functionName = this.name.toFunctionName();
@@ -96,7 +107,13 @@ function genericTimerHandler(){
 
 //Time in seconds
 function activateTimer( timer){
-
+  var timerID;
+  
+  if( data.timers.has( timer ) ){
+    genericTimerHandler.bind(timer)();
+    return;
+  } 
+  
   timer.counter = 10;
   timerID = window.setInterval( genericTimerHandler.bind(timer) , timer.time * 1000 / timer.counter);    
   timer.id = timerID;
@@ -111,7 +128,7 @@ function removetimer( timer ){
 
 function updateUI( element ){
   
-  var i, s, action, color, area, areaLabel, timer, messageCounter, stat;
+  var i, s, action, color, area, areaLabel, timer, messageCounter, stat, guest;
   
   if( !data.updateUI ){
     return;
@@ -119,10 +136,9 @@ function updateUI( element ){
   //Messages
   if( element == 'messages' || element == 'all' ){
     messageCounter = data.lastMessageCounter==1?'':'('+data.lastMessageCounter+'x)';
-    elements.log.innerHTML = '<td class="white">' + data.messages[2] + '<br>' +
-                                             data.messages[1] + '<br>' +
-                                             data.messages[0] + messageCounter + '<br>' +
-                             '</td>';  
+    elements.log.innerHTML = data.messages[2] + '<br>' +
+                             data.messages[1] + '<br>' +
+                             data.messages[0] + messageCounter + '<br>';  
   } 
   //Actions
   if( element == 'actions' || element == 'all' ){
@@ -133,7 +149,7 @@ function updateUI( element ){
       color = data.labelColors[action];
       s = s + '<a href="#" class=' + color + ' id="' + action + '">' + action + '</href>';
     } 
-    elements.actions.innerHTML = '<td>' + s + '</td>';  
+    elements.actions.innerHTML = s;  
   } 
   //Areas
   if( element == 'areas' || element == 'all' ){
@@ -148,7 +164,7 @@ function updateUI( element ){
         s = s + '<black>' + area + '</black>&nbsp;';
       }
     }
-    elements.areas.innerHTML = '<td>' + s + '</td>';  
+    elements.areas.innerHTML = s;  
   }  
   //Timers
   if( element == 'timers' || element == 'all' ){
@@ -160,7 +176,7 @@ function updateUI( element ){
       s = '<a href="#" class="' + timer.color + ' timer" id="click_' + timer.name + '">' + s + '</a>&nbsp;<br>';
     }
     while( i++ < 6 ) s += '<br>';
-    elements.timers.innerHTML = '<td>' + s + '</td>';
+    elements.timers.innerHTML = s;
   }
   //Areas
   if( element == 'stats' || element == 'all' ){
@@ -172,8 +188,22 @@ function updateUI( element ){
       s = s + '<span class="' + color + ' cap">' + stat + ':' + data.stats[stat] +'</span>&nbsp;';
       
     }
-    elements.stats.innerHTML = '<td>' + s + '</td>';  
+    elements.stats.innerHTML = s;  
   }  
+  //Guests
+  if( element == 'guests' || element == 'all' ){
+    s = '';
+
+    for( i = 0; i < data.guests.length; i++ ){
+      guest = data.guests[i];
+      color = guest.color;
+      s = s + '<a href="#" class="' + color + '">' + guest.name + '</a><br>';
+      
+    }
+    elements.guests.innerHTML = s;  
+  }    
+  
+  
   wireListeners();
 }
 
@@ -182,8 +212,12 @@ function genericClickHandler( event ){
   var element = event.target || event.srcElement;
   var handlerName = element.id.split(" ").join("_").toLowerCase();
   var handler = handlers[handlerName];
+  var timer;
   if( handler ){
     handler();
+  } else if( handlerName.startsWith( 'click_' ) ) {
+    timer = timers[ handlerName.substr( 'click_'.length ) ];
+    genericTimerHandler.bind(timer)();  
   } else {
     console.log( 'No handler defined for ' + handlerName );  
   }
@@ -218,10 +252,22 @@ function removeAction( s ){
   updateUI('actions');
 }
 
+function addGuest( guest, area ){
+  guest = clone( guests[guest] );
+  guest.area = area || guest.area;
+  guest.status = guest.status || '';
+  data.guests.push( guest );
+  if( guest.intro ){
+    addMessage( guest.intro );
+  }
+  updateUI('guests');
+}
+
 function activateArea( area ){
   data.labelColors[area] = data.areaLabelColors[area]; 
   data.area = area;
-  data.timers = data.allTimers[area];
+  data.timers = data.allTimers[area] = data.allTimers[area] || [];
+  data.guests = data.allGuests[area] = data.allGuests[area] || [];
   updateUI('areas');
 }
 
@@ -229,9 +275,8 @@ addMessage( 'You awaken, your head is pounding...' );
 addMessage( 'It is dark here,' );
 addMessage( 'There is a lantern next to you.' );
 
-addAction( 'Light lantern' , 'yellow' );
 activateArea( 'Inn' );
-
+addAction( 'Light lantern' , 'yellow' );
 
 //3vil detected!
 Array.prototype.remove = function arrayRemove( value ) {
@@ -242,3 +287,17 @@ Array.prototype.remove = function arrayRemove( value ) {
 String.prototype.toFunctionName = function stringToFunctionName(){
   return this.split(" ").join("_").toLowerCase();
 };
+
+Array.prototype.has = function has( o ){
+  for(var i = 0 ; i < this.length ; i++ ){
+    if( this[i] === o ){
+      return true;
+    }
+  }
+  return false;
+};
+
+function clone( o ){
+  return JSON.parse(JSON.stringify(o));
+}
+
