@@ -9,15 +9,12 @@ body {
 .darkgray { color:dimgray;}
 .gray { color:gray;}
 .wood { color:brown;}
+.CornflowerBlue { color:CornflowerBlue; }
 
 .timer {text-decoration: none;}
 .cap { text-transform:capitalize; }
 
-#log     { height: 14.28% }
-#areas   { height: 14.28% }
-#main    { height: 35.71% }
-#actions { height: 7.14% }
-#stats   { height: 7.14% }
+
 .spacer  { height: 3.64% }
 
 table {
@@ -27,4 +24,8 @@ table {
   left: 0; 
   right: 0;
   width: 100%;
+}
+
+td{
+  vertical-align: top;
 }
